@@ -1,6 +1,9 @@
 [database]
-host = "pg"
-port = "5432"
+host = "localhost"
+port = "5433"
 database = "collector"
 user = "collector"
 password = "collector"
+
+[bot]
+token = "6305905363:AAErlNeSPms9BRSk_VPdo3nyt5LEpBJ9Cq4"

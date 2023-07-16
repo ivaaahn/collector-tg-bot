@@ -1,17 +1,16 @@
 package config
 
-type ServerConfig struct {
-	DatabaseParams PostgresConnectionParams `toml:"database"`
+import "collector/internal/infra"
+
+type BotConfig struct {
+	Token string
 }
 
-type PostgresConnectionParams struct {
-	Host     string
-	Port     string
-	Database string
-	User     string
-	Password string
+type AppConfig struct {
+	DatabaseConfig *infra.DatabaseConfig `toml:"database"`
+	BotConfig      *BotConfig            `toml:"bot"`
 }
 
-func CreateConfigForServer() *ServerConfig {
-	return &ServerConfig{}
+func NewAppConfig() *AppConfig {
+	return &AppConfig{}
 }

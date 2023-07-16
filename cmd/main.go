@@ -1,31 +1,56 @@
 package main
 
 import (
-	"collector-telegram-bot/config"
-	"collector-telegram-bot/internal/server"
+	"collector/config"
+	"collector/internal/infra"
 	"flag"
+	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/telebot.v3"
+	"time"
 )
 
+const configDefaultPath = "./config/config.toml"
+const defaultBotPollerTimeout = 10 * time.Second
+
 func main() {
+	// Args
 	var (
 		configPath string
 		token      string
 	)
-	flag.StringVar(&configPath, "c", "./config/config.toml", "path to config file")
+	flag.StringVar(&configPath, "c", configDefaultPath, "path to config file")
 	flag.StringVar(&token, "t", "", "token for bot")
 	flag.Parse()
 
-	serverConfig := config.CreateConfigForServer()
-	_, err := toml.DecodeFile(configPath, &serverConfig)
+	// Configs
+	appConfig := config.NewAppConfig()
+	_, err := toml.DecodeFile(configPath, &appConfig)
 	if err != nil {
 		logrus.Fatal(err)
 	}
+
+	// Loggers
 	contextLogger := logrus.WithFields(logrus.Fields{})
 	logrus.SetReportCaller(false)
 	logrus.SetFormatter(&logrus.TextFormatter{PadLevelText: false, DisableLevelTruncation: false})
-	appServer := server.CreateServer(serverConfig, contextLogger, token)
 
-	appServer.Start()
+	// Bot
+	bot, err := telebot.NewBot(telebot.Settings{
+		Token:  appConfig.BotConfig.Token,
+		Poller: &telebot.LongPoller{Timeout: defaultBotPollerTimeout},
+	})
+	if err != nil {
+		logrus.Panicf("Server error: %s", fmt.Sprintf("%v", err))
+	}
+
+	// Database
+	db, err := infra.NewDb(appConfig.DatabaseConfig)
+	if err != nil {
+		logrus.Panicf("Database error: %s", fmt.Sprintf("%v", err))
+	}
+
+	appServer := infra.NewServer(contextLogger, appConfig.BotConfig.Token, db, bot)
+	appServer.Run()
 }
