@@ -2,14 +2,15 @@ package infra
 
 import (
 	"collector/internal"
-	repo "collector/internal/repository"
+	repo "collector/internal/fsm"
 	"gopkg.in/telebot.v3"
+	"strings"
 )
 
 func getInitFsmMiddleware(fsmRepository *repo.FSMRepository) telebot.MiddlewareFunc {
 	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
 		return func(c telebot.Context) error {
-			fsmRepository.Init(c.Message().Sender.ID, c.Message().Text)
+			fsmRepository.Init(c.Message().Sender.ID, strings.Split(c.Message().Text, "@")[0])
 			return next(c)
 		}
 	}

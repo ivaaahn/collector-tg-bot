@@ -1,16 +1,18 @@
 package sessions
 
-import "time"
+import (
+	"time"
+)
 
-type UserCostDTO struct {
-	Amount      int
-	Description string
-	CreatedAt   time.Time
+type UserPurchaseDTO struct {
+	Price     int
+	Title     string
+	CreatedAt time.Time
 }
 
-type AllUserCostsDTO struct {
-	Sum   int
-	Costs []UserCostDTO
+type AllPurchasesDTO struct {
+	Sum       int
+	Purchases []UserPurchaseDTO
 }
 
 type UserDebtDTO struct {
@@ -22,12 +24,30 @@ type AllUserDebtsDTO struct {
 	Debts []UserDebtDTO
 }
 
-type AddExpenseDTO struct {
-	Product  string
-	ChatID   int64
-	UserID   int64
-	Username string
-	Cost     int
+type ExpenseDTO struct {
+	PurchaseID int64
+	Quantity   int
+	Eaters     []string
+}
+
+type PurchaseDTO struct {
+	ProductTitle string
+	Price        int
+	Quantity     int
+}
+
+type AddPurchasesDTO struct {
+	ChatID        int64
+	BuyerID       int64
+	BuyerUsername string
+	Purchases     []*PurchaseDTO
+}
+
+type AddExpensesDTO struct {
+	ChatID         int64
+	AuthorID       int64
+	AuthorUsername string
+	Expenses       []*ExpenseDTO
 }
 
 type CreateSessionDTO struct {

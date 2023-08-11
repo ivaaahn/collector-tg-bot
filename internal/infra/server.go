@@ -1,9 +1,8 @@
 package infra
 
 import (
-	repo "collector/internal/repository"
+	repo "collector/internal/fsm"
 	"collector/internal/sessions"
-	"collector/internal/users"
 	"database/sql"
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
@@ -11,13 +10,15 @@ import (
 )
 
 const (
-	sessionsList = "/sessions"
-	start        = "/start"
-	add          = "/add"
-	debts        = "/debts"
-	costs        = "/costs"
-	costsFull    = "/costs_full"
-	finish       = "/finish"
+	sessionsList     = "/sessions"
+	newSession       = "/new_session"
+	addPurchases     = "/add_purchases"
+	collectPurchases = "/collect_purchases"
+	addExpenses      = "/add_expenses"
+	debts            = "/debts"
+	costs            = "/costs"
+	costsFull        = "/costs_full"
+	finish           = "/finish"
 )
 
 type Server struct {
@@ -42,7 +43,7 @@ func (s *Server) Run() {
 func (s *Server) setupCommands() {
 	commands := []telebot.Command{
 		{
-			Text:        add,
+			Text:        addPurchases,
 			Description: "Добавить трату",
 		},
 		{
@@ -54,11 +55,19 @@ func (s *Server) setupCommands() {
 			Description: "Подробные траты на текущий момент",
 		},
 		{
-			Text:        sessionsList,
-			Description: "Список сессий",
+			Text:        collectPurchases,
+			Description: "Получить список покупок",
 		},
 		{
-			Text:        start,
+			Text:        addExpenses,
+			Description: "Добавить трату",
+		},
+		//{
+		//	Text:        sessionsList,
+		//	Product: "Список сессий",
+		//},
+		{
+			Text:        newSession,
 			Description: "Начать сессию",
 		},
 		{
@@ -67,7 +76,7 @@ func (s *Server) setupCommands() {
 		},
 		{
 			Text:        finish,
-			Description: "Подсчитать итоги",
+			Description: "Завершить сессию",
 		},
 	}
 	err := s.bot.SetCommands(commands)
@@ -78,22 +87,21 @@ func (s *Server) setupCommands() {
 }
 
 func (s *Server) setupHandlers() {
-	sessionRepo := sessions.NewRepo(s.logger, s.db)
-	usersRepo := users.NewRepo(s.logger, s.db)
 	fsmRepository := repo.NewFSMRepository(s.logger)
 
-	usersUsecase := users.NewUsecase(s.logger, *usersRepo)
-	sessionsUsecase := sessions.NewUsecase(s.logger, usersUsecase, *sessionRepo, *usersRepo)
-
+	sessionRepo := sessions.NewRepo(s.logger, s.db)
+	sessionsUsecase := sessions.NewUsecase(s.logger, *sessionRepo)
 	sessionHandler := sessions.NewHandler(s.logger, sessionsUsecase, fsmRepository)
 
 	router := map[string]telebot.HandlerFunc{
-		start:     sessionHandler.StartSession,
-		add:       sessionHandler.AddCost,
-		costsFull: sessionHandler.GetCostsFull,
-		costs:     sessionHandler.GetCosts,
-		debts:     sessionHandler.GetDebts,
-		finish:    sessionHandler.FinishSession,
+		newSession:       sessionHandler.StartSession,
+		addPurchases:     sessionHandler.AddPurchases,
+		collectPurchases: sessionHandler.GetPurchases,
+		addExpenses:      sessionHandler.AddExpenses,
+		//costsFull: sessionHandler.GetCostsFull,
+		//costs:     sessionHandler.GetCosts,
+		debts: sessionHandler.GetDebts,
+		//finish:    sessionHandler.FinishSession,
 	}
 
 	// Default command handlers
@@ -115,7 +123,7 @@ func (s *Server) setupHandlers() {
 			}
 		}
 
-		return c.Send("Я не понимаю :(")
+		return nil
 	})
 
 	// Common middleware

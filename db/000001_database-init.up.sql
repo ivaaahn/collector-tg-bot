@@ -1,59 +1,63 @@
-create type session_state_t as enum ('active', 'closed');
-
-create table users (
-    id bigserial not null,
-    tg_id bigint not null,
-    username text not null,
-    created_at date default current_timestamp not null,
-    requisites text not null,
-    primary key (id)
+CREATE TABLE "users"
+(
+    "id"         bigint PRIMARY KEY,
+    "username"   text,
+    "created_at" timestamptz
 );
 
-create table sessions (
-    uuid uuid not null,
-    creator_id bigint not null,
-    chat_id bigint not null,
-    started_at date default current_timestamp not null,
-    state session_state_t not null,
-    primary key (uuid),
-    foreign key (creator_id) references users (id) on delete cascade
+CREATE TABLE "sessions"
+(
+    "id"          uuid PRIMARY KEY,
+    "title"       text,
+    "creator_id"  bigint,
+    "chat_id"     bigint,
+    "created_at"  timestamptz,
+    "finished_at" timestamptz null default null
 );
 
-create table members (
-    id bigserial not null,
-    session_id uuid not null,
-    user_id bigint not null,
-    primary key (id),
-    foreign key (user_id) references users (id) on delete cascade,
-    foreign key (session_id) references sessions (uuid) on delete cascade
+CREATE TABLE "members"
+(
+    "user_id"    bigint,
+    "session_id" uuid,
+    PRIMARY KEY ("user_id", "session_id")
 );
 
-create table debts (
-    id bigserial not null,
-    creditor_id bigint not null,
-    debtor_id bigint not null,
-    money real not null,
-    primary key (id),
-    foreign key (creditor_id) references members (id) on delete cascade,
-    foreign key (debtor_id) references members (id) on delete cascade
+CREATE TABLE "purchases"
+(
+    "id"         serial primary key,
+    "buyer_id"   bigint,
+    "session_id" uuid,
+    "price"      int,
+    "created_at" timestamptz default now(),
+    "title"      text,
+    "quantity"   int
 );
 
-alter table
-    debts
-add
-    constraint "debts_money_check" check (money > 0);
-
-create table costs (
-    id bigserial not null,
-    member_id bigint not null,
-    money real not null,
-    description text not null,
-    created_at date default current_timestamp not null,
-    primary key (id),
-    foreign key (member_id) references members (id) on delete cascade
+CREATE TABLE "expenses"
+(
+    "purchase_id" int,
+    "eater_id"    bigint,
+    "session_id"  uuid,
+    "qty"         int DEFAULT 1,
+    PRIMARY KEY ("purchase_id", "eater_id", "session_id")
 );
 
-alter table
-    costs
-add
-    constraint "costs_money_check" check (money > 0);
+CREATE UNIQUE INDEX ON "users" ("username");
+
+ALTER TABLE "sessions"
+    ADD FOREIGN KEY ("creator_id") REFERENCES "users" ("id");
+
+ALTER TABLE "members"
+    ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id"),
+    ADD FOREIGN KEY ("session_id") REFERENCES "sessions" ("id");
+
+ALTER TABLE "purchases"
+    ADD FOREIGN KEY ("buyer_id") REFERENCES "users" ("id"),
+    ADD FOREIGN KEY ("session_id") REFERENCES "sessions" ("id"),
+    ADD FOREIGN KEY ("session_id", "buyer_id") REFERENCES "members" ("session_id", "user_id");
+
+ALTER TABLE "expenses"
+    ADD FOREIGN KEY ("purchase_id") REFERENCES "purchases" ("id"),
+    ADD FOREIGN KEY ("eater_id") REFERENCES "users" ("id"),
+    ADD FOREIGN KEY ("session_id") REFERENCES "sessions" ("id"),
+    ADD FOREIGN KEY ("eater_id", "session_id") REFERENCES "members" ("user_id", "session_id");

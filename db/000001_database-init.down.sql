@@ -1,11 +1,9 @@
-drop table costs;
-
-drop table debts;
-
-drop table members;
+drop table users;
 
 drop table sessions;
 
-drop table users;
+drop table members;
 
-drop type session_state_t;
+drop table purchases;
+
+drop table expenses;
