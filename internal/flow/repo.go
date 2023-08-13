@@ -1,8 +1,7 @@
-package sessions
+package flow
 
 import (
 	"collector/internal"
-	"collector/internal/calculator"
 	"context"
 	"database/sql"
 	"errors"
@@ -101,27 +100,13 @@ func (r *Repo) CreateUser(user *User) error {
 
 	return nil
 }
-func (r *Repo) CreateSession(session *Session) error {
-	q := `
-	INSERT INTO sessions (id, creator_id, chat_id, title, created_at)
-	VALUES ($1, $2, $3, $4, current_timestamp);`
-
-	_, err := r.Conn.Exec(
-		q, session.ID, session.CreatorID, session.ChatID, session.Title,
-	)
-	if err != nil {
-		return fmt.Errorf("Repo->CreateSession: %w", err)
-	}
-
-	return nil
-}
 
 func (r *Repo) GetSessionByChatID(chatID int64) (*Session, error) {
 	var session Session
 
 	q := `
 		SELECT id, title, creator_id, chat_id, created_at, finished_at
-		FROM sessions WHERE chat_id = $1;`
+		FROM sessions WHERE chat_id = $1 and finished_at is NULL;`
 
 	err := sqlscan.Get(context.Background(), r.Conn, &session, q, chatID)
 
@@ -216,93 +201,3 @@ func (r *Repo) AddExpense(expense *Expense) error {
 	_, err := r.Conn.Exec(q, expense.PurchaseID, expense.EaterID, expense.SessionID, expense.Quantity)
 	return err
 }
-
-func (r *Repo) GetExpenses(sessionID internal.UUID) ([]*calculator.Expense, error) {
-	q := `
-SELECT eu.id as eater_id, 
-    	eu.username as eater_username, 
-    	purchase_id as product_id, 
-    	bu.username as buyer_username,
-    	bu.id as buyer_id
-FROM expenses e
-	JOIN users eu on e.eater_id = eu.id
-	JOIN purchases p on e.purchase_id = p.id
-	JOIN users bu on p.buyer_id = bu.id
-WHERE e.session_id = $1;`
-
-	var expenses []*calculator.Expense
-	err := sqlscan.Select(context.Background(), r.Conn, &expenses, q, sessionID)
-	if err != nil {
-		return nil, err
-	}
-
-	return expenses, err
-}
-
-func (r *Repo) GetProducts(sessionID internal.UUID) ([]*calculator.Product, error) {
-	q := `
-SELECT id, title, price, count(p.id) as num_of_eats
-FROM purchases p
-	JOIN expenses e on p.id = e.purchase_id
-WHERE p.session_id = $1
-GROUP BY e.purchase_id, p.id, title, price;`
-
-	var products []*calculator.Product
-	err := sqlscan.Select(context.Background(), r.Conn, &products, q, sessionID)
-	if err != nil {
-		return nil, err
-	}
-
-	return products, err
-}
-
-//func (r *Repo) addExpense(expense *Expense) error {
-//	q := `INSERT INTO expenses (purchase_id, eater_id, session_id, qty) VALUES ($1, $2, $3, $4);`
-//	_, err := r.Conn.Exec(q, expense.PurchaseID, expense.EaterID, expense.SessionID, expense.TotalDebt)
-//	return err
-//}
-//
-//func (r *Repo) GetSessionPurchases(sessionID internal.UUID) ([]*UserPurchase, error) {
-//	q := `
-//	SELECT
-//	    P.id as id,
-//	    P.title as title,
-//	    P.buyer_id as buyer_id,
-//	    P.session_id as session_id,
-//	    P.price as price,
-//	    P.created_at as created_at,
-//	    U.username as buyer_username
-//	FROM purchases P
-//		JOIN users as U on P.buyer_id = U.id
-//	WHERE P.session_id = $1;`
-//
-//	var userPurchases []*UserPurchase
-//	err := sqlscan.Select(context.Background(), r.Conn, &userPurchases, q, sessionID)
-//	if err != nil {
-//		return nil, fmt.Errorf("Repo->GetSessionPurchases; %w", err)
-//	}
-//
-//	return userPurchases, err
-//}
-//
-//func (r *Repo) GetMemberCosts(sessionID internal.UUID) ([]*MemberCost, error) {
-//	q := `
-//	SELECT M.user_id, C.money
-//	FROM members as M
-//	    JOIN costs as C on M.id = C.creditor_id
-//	WHERE M.session_id = $1`
-//
-//	var membercosts []*MemberCost
-//	err := sqlscan.Select(context.Background(), r.Conn, &membercosts, q, sessionID)
-//	if err != nil {
-//		return nil, err
-//	}
-//	return membercosts, err
-//}
-////
-////func (r *Repo) ChangeSessionStateToClosed(sessionID internal.UUID) error {
-////	q := `UPDATE sessions SET state = $1 WHERE uuid = $2`
-////
-////	_, err := r.Conn.Exec(q, SessionClosedState, sessionID)
-////	return err
-////}

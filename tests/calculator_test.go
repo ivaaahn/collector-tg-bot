@@ -1,14 +1,14 @@
 package tests
 
 import (
-	"collector/internal/calculator"
+	"collector/internal/debts_calculation"
 	"encoding/json"
 	"reflect"
 	"testing"
 )
 
 func TestCalculator(t *testing.T) {
-	products := map[int64]calculator.Product{
+	products := map[int64]debts_calculation.Product{
 		1: {
 			1,
 			"Вода",
@@ -22,11 +22,11 @@ func TestCalculator(t *testing.T) {
 			250,
 		},
 	}
-	users := []calculator.User{
+	users := []debts_calculation.User{
 		{
 			ID:       1,
 			Username: "user_1",
-			Expenses: []calculator.Expense{
+			Expenses: []debts_calculation.Expense{
 				{
 					ProductID:     2,
 					BuyerID:       2,
@@ -37,7 +37,7 @@ func TestCalculator(t *testing.T) {
 		{
 			ID:       2,
 			Username: "user_2",
-			Expenses: []calculator.Expense{
+			Expenses: []debts_calculation.Expense{
 				{
 					ProductID:     1,
 					BuyerID:       1,
@@ -47,18 +47,18 @@ func TestCalculator(t *testing.T) {
 		},
 	}
 
-	want := map[string]map[string]*calculator.Debt{
+	want := map[string]map[string]*debts_calculation.Debt{
 		"user_1": {
 			"user_2": {
 				150,
-				[]calculator.HistoryItem{
+				[]debts_calculation.HistoryItem{
 					{
-						calculator.OUTCOME,
+						debts_calculation.OUTCOME,
 						"Пиво",
 						250,
 					},
 					{
-						calculator.INCOME,
+						debts_calculation.INCOME,
 						"Вода",
 						100,
 					},
@@ -67,7 +67,7 @@ func TestCalculator(t *testing.T) {
 		},
 	}
 
-	calc := calculator.New(users, products)
+	calc := debts_calculation.NewCalculator(users, products)
 	got := calc.Calculate()
 
 	if !reflect.DeepEqual(got, want) {

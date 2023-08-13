@@ -1,4 +1,4 @@
-package sessions
+package flow
 
 import (
 	"collector/internal"
@@ -20,10 +20,6 @@ type Session struct {
 	ChatID     int64
 	CreatedAt  time.Time
 	FinishedAt sql.NullTime
-}
-
-func (s *Session) IsActive() bool {
-	return true
 }
 
 type Member struct {
@@ -48,23 +44,6 @@ type Expense struct {
 	Quantity   int
 }
 
-//-------------------------------------
-
-type UserPurchase struct {
-	ID            uuid.UUID
-	Title         string
-	BuyerID       int64
-	SessionID     uuid.UUID
-	Price         int
-	BuyerUsername string `db:"buyer_username"`
-	CreatedAt     time.Time
-}
-
-type MemberCost struct {
-	UserID int64
-	Money  int
-}
-
 func NewPurchase(sessionID uuid.UUID, buyerID int64, price int, title string, quantity int) *Purchase {
 	return &Purchase{
 		BuyerID:   buyerID,
@@ -81,15 +60,6 @@ func NewExpense(purchaseID int64, eaterID int64, qty int, sessionID uuid.UUID) *
 		EaterID:    eaterID,
 		SessionID:  sessionID,
 		Quantity:   qty,
-	}
-}
-
-func NewSession(UUID uuid.UUID, creatorID int64, chatID int64, title string) *Session {
-	return &Session{
-		ID:        UUID,
-		CreatorID: creatorID,
-		ChatID:    chatID,
-		Title:     title,
 	}
 }
 

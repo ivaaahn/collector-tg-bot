@@ -2,6 +2,7 @@ package main
 
 import (
 	"collector/config"
+	"collector/internal/bot_setup"
 	"collector/internal/infra"
 	"flag"
 	"fmt"
@@ -51,6 +52,6 @@ func main() {
 		logrus.Panicf("Database error: %s", fmt.Sprintf("%v", err))
 	}
 
-	appServer := infra.NewServer(contextLogger, appConfig.BotConfig.Token, db, bot)
-	appServer.Run()
+	botServer := bot_setup.NewServer(contextLogger, appConfig.BotConfig.Token, db, bot)
+	botServer.Run()
 }

@@ -1,8 +1,13 @@
-package infra
+package bot_setup
 
 import (
-	repo "collector/internal/fsm"
-	"collector/internal/sessions"
+	"collector/internal/bot_setup/botmw"
+	"collector/internal/bot_setup/fsm"
+	"collector/internal/bot_setup/handler"
+	"collector/internal/bot_setup/sessionctx"
+	"collector/internal/debts_calculation"
+	"collector/internal/flow"
+	"collector/internal/session_manage"
 	"database/sql"
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
@@ -47,14 +52,6 @@ func (s *Server) setupCommands() {
 			Description: "Добавить трату",
 		},
 		{
-			Text:        costs,
-			Description: "Траты на текущий момент",
-		},
-		{
-			Text:        costsFull,
-			Description: "Подробные траты на текущий момент",
-		},
-		{
 			Text:        collectPurchases,
 			Description: "Получить список покупок",
 		},
@@ -87,28 +84,34 @@ func (s *Server) setupCommands() {
 }
 
 func (s *Server) setupHandlers() {
-	fsmRepository := repo.NewFSMRepository(s.logger)
+	sessionManageRepo := session_manage.NewRepo(s.logger, s.db)
+	sessionManageSvc := session_manage.NewService(s.logger, *sessionManageRepo)
 
-	sessionRepo := sessions.NewRepo(s.logger, s.db)
-	sessionsUsecase := sessions.NewUsecase(s.logger, *sessionRepo)
-	sessionHandler := sessions.NewHandler(s.logger, sessionsUsecase, fsmRepository)
+	sessionFlowRepo := flow.NewRepo(s.logger, s.db)
+	sessionFlowSvc := flow.NewService(s.logger, *sessionFlowRepo)
 
+	debtsRepo := debts_calculation.NewRepo(s.logger, s.db)
+	debtsService := debts_calculation.NewService(s.logger, *debtsRepo)
+
+	fsmRepository := fsm.NewFSM(s.logger)
 	router := map[string]telebot.HandlerFunc{
-		newSession:       sessionHandler.StartSession,
-		addPurchases:     sessionHandler.AddPurchases,
-		collectPurchases: sessionHandler.GetPurchases,
-		addExpenses:      sessionHandler.AddExpenses,
-		//costsFull: sessionHandler.GetCostsFull,
-		//costs:     sessionHandler.GetCosts,
-		debts: sessionHandler.GetDebts,
-		//finish:    sessionHandler.FinishSession,
+		newSession: handler.NewStartSessionHandler(s.logger, sessionManageSvc, fsmRepository).Execute,
+		finish:     handler.NewFinishSessionHandler(s.logger, sessionManageSvc, fsmRepository).Execute,
+
+		addPurchases:     handler.NewAddPurchasesHandler(s.logger, sessionFlowSvc, fsmRepository).Execute,
+		collectPurchases: handler.NewGetPurchasesHandler(s.logger, sessionFlowSvc, fsmRepository).Execute,
+		addExpenses:      handler.NewAddExpensesHandler(s.logger, sessionFlowSvc, fsmRepository).Execute,
+
+		debts: handler.NewGetDebtsHandler(s.logger, debtsService, fsmRepository).Execute,
 	}
 
 	// Default command handlers
+	s.bot.Use(sessionctx.GetCheckSessionMiddleware(s.db, s.logger))
+
 	group := s.bot.Group()
-	group.Use(getInitFsmMiddleware(fsmRepository))
-	for endpoint, handler := range router {
-		group.Handle(endpoint, handler)
+	group.Use(botmw.GetInitFsmMiddleware(fsmRepository))
+	for endpoint, handler_ := range router {
+		group.Handle(endpoint, handler_)
 	}
 
 	// Common text handler
@@ -117,9 +120,9 @@ func (s *Server) setupHandlers() {
 
 		if fsmRepository.IsActiveSessionExists(userID) {
 			userCtx := fsmRepository.GetContext(userID)
-			handler, ok := router[userCtx.Endpoint]
+			handler_, ok := router[userCtx.Endpoint]
 			if ok {
-				return handler(c)
+				return handler_(c)
 			}
 		}
 
@@ -127,5 +130,5 @@ func (s *Server) setupHandlers() {
 	})
 
 	// Common middleware
-	s.bot.Use(getLogInputMsgMiddleware(s.logger))
+	s.bot.Use(botmw.GetLogInputMsgMiddleware(s.logger))
 }
